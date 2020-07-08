@@ -20,7 +20,7 @@ def home():
     return 'Hello Flask'
 
 
-@app.route('/get-next-question')
+@app.route('/get-next-question', methods=['POST'])
 def get_next_question():
     body = request.get_json()
     session = body["session"]
