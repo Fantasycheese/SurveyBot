@@ -25,7 +25,7 @@ def get_next_question():
     body = request.get_json()
     session = body["session"]
     if session not in sessions:
-        sessions[session] = 5
+        sessions[session] = len(questions)-1
     question = questions[sessions[session]]
     sessions[session] -= 1
     return json.dumps({
