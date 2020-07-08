@@ -26,14 +26,18 @@ def get_next_question():
     session = body["session"]
     if session not in sessions:
         sessions[session] = len(questions)-1
-    question = questions[sessions[session]]
-    sessions[session] -= 1
+    if sessions[session] < 0:
+        response = "Thanks!"
+    else:
+        response = questions[sessions[session]]
+        sessions[session] -= 1
+
     return json.dumps({
         "fulfillmentMessages": [
             {
                 "text": {
                     "text": [
-                        question
+                        response
                     ]
                 }
             }
