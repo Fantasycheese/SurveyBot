@@ -27,16 +27,15 @@ def get_next_question():
     session = body["session"]
     if session not in survey_progress:
         survey_progress[session] = 0
-
-    answer = body["queryResult"]["queryText"]
-
-    save_response_to_google_sheet(session, answer)
+    else:
+        answer = body["queryResult"]["queryText"]
+        save_response_to_google_sheet(session, answer)
 
     return get_next_question_by_session(session)
 
 
 def save_response_to_google_sheet(session: str, answer: str):
-    question = f"Q{survey_progress[session]+1}"
+    question = f"Q{survey_progress[session]}"
     requests.post(f"https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec?session={session}&question={question}&answer={answer}")
 
 
