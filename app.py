@@ -1,8 +1,8 @@
 import json
-
 import requests
 from flask import Flask
 from flask import request
+from threading import Thread
 
 app = Flask(__name__)
 
@@ -29,7 +29,7 @@ def get_next_question():
         survey_progress[session] = 0
     else:
         answer = body["queryResult"]["queryText"]
-        save_response_to_google_sheet(session, answer)
+        Thread(target=save_response_to_google_sheet, args=(session, answer)).start()
 
     return get_next_question_by_session(session)
 
