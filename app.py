@@ -59,7 +59,7 @@ def get_top_words():
         vectorizer = pickle.load(f)
 
     top_n = 10
-    text = ' '.join(request.get_json())
+    text = ' '.join(request.get_json()["texts"])
     embedding = vectorizer.transform([text])[0]
     sorted_nzs = np.argsort(embedding.data)[:-(top_n + 1):-1]
     feature_names = np.array(vectorizer.get_feature_names())
