@@ -27,11 +27,10 @@ questions = [
     "how does GR compare to google sheet ?"
 ]
 
+nltk.download('stopwords')
 english_stopwords = stopwords.words('english')
 unigrams_vectorizer = TfidfVectorizer(stop_words=english_stopwords, ngram_range=(1, 1))
 bigrams_vectorizer = TfidfVectorizer(stop_words=english_stopwords, ngram_range=(2, 2), min_df=2)
-
-nltk.download('stopwords')
 
 
 @app.route('/')
