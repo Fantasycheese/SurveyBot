@@ -3,3 +3,5 @@ Gunicorn
 requests
 sklearn
 nltk
+pandas
+numpy
