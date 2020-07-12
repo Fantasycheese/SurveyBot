@@ -5,8 +5,7 @@ import requests
 import nltk
 import numpy as np
 import pandas as pd
-from flask import Flask
-from flask import request
+from flask import Flask, request, render_template
 from threading import Thread
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
@@ -35,7 +34,7 @@ bigrams_vectorizer = TfidfVectorizer(stop_words=english_stopwords, ngram_range=(
 
 @app.route('/')
 def home():
-    return 'Hello Flask'
+    return render_template('index.html')
 
 
 @app.route('/get-next-question', methods=['POST'])
