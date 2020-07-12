@@ -13,18 +13,10 @@ from nltk.corpus import stopwords
 app = Flask(__name__)
 
 survey_progress = {}
-questions = [
-    "Do you use GR in the meetings?",
-    "What are those meetings? Can you share more details?",
-    "What are the interaction you do with GR in the meetings? (update data?, check and sync progress? for future planning?...)",
-    "Does GR help?",
-    "Why?",
-    "How often do you update the KRs on google sheet?",
-    "When do you update KRs?  What makes or motivate you to update KRs?",
-    "What do you find most frustrating about using google sheet? (anything, for data input, collabration...)",
-    "What do you find the best about using google sheet?",
-    "how does GR compare to google sheet ?"
-]
+
+db = requests.get("https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec").json()
+questionIds = db[0][1:]
+questions = db[1][1:]
 
 nltk.download('stopwords')
 english_stopwords = stopwords.words('english')
@@ -44,32 +36,11 @@ def get_next_question():
     if session not in survey_progress:
         survey_progress[session] = 0
     else:
-        answer = body["queryResult"]["queryText"]
         id = body["responseId"]
-        Thread(target=save_response_to_google_sheet, args=(session, answer)).start()
-        Thread(target=tf_idf_fit, args=(id, answer)).start()
+        answer = body["queryResult"]["queryText"]
+        Thread(target=tf_idf, args=(session, survey_progress[session], id, answer)).start()
 
     return get_next_question_by_session(session)
-
-
-@app.route('/get-top-words', methods=['post'])
-def get_top_words():
-    with open("tf_idf_model.pickle", "rb") as f:
-        vectorizer = pickle.load(f)
-
-    top_n = 10
-    text = ' '.join(request.get_json()["texts"])
-    embedding = vectorizer.transform([text])[0]
-    sorted_nzs = np.argsort(embedding.data)[:-(top_n + 1):-1]
-    feature_names = np.array(vectorizer.get_feature_names())
-    words = feature_names[embedding.indices[sorted_nzs]]
-    scores = embedding.data[sorted_nzs]
-    return dict(zip(words, scores))
-
-
-def save_response_to_google_sheet(session: str, answer: str):
-    question = f"Q{survey_progress[session]}"
-    requests.post(f"https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec?session={session}&question={question}&answer={answer}")
 
 
 def get_next_question_by_session(session: str):
@@ -91,11 +62,19 @@ def get_next_question_by_session(session: str):
     })
 
 
-def tf_idf_fit(id, answer):
-    print(f"training for new response: {answer}")
-    data = requests.get("https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec")
-    corpus = pd.DataFrame(data.json()).drop(0, 1).apply(' '.join, axis=1).to_list()
-    corpus.append(answer)
+def tf_idf(session, progress, id, answer):
+    print(f"{id}: saving response to google sheet...")
+    questionId = questionIds[progress-1]
+    saveResponse = requests.post(f"https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec?session={session}&question={questionId}&answer={answer}")
+    if saveResponse.status_code != 200:
+        return
+
+    print(f"{id}: getting corpus from google sheet...")
+    table = requests.get("https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec").json()
+    df = pd.DataFrame(table)
+    corpus = df.drop([0, 1, 2]).drop(0, 1).applymap(str).apply(' '.join, axis=1).to_list()
+
+    print(f"{id}: training with new corpus...")
 
     # unigrams_vectorizer.fit(corpus)
     #
@@ -110,10 +89,22 @@ def tf_idf_fit(id, answer):
     vectorizer = TfidfVectorizer(stop_words=english_stopwords, ngram_range=(1, 1))
     vectorizer.fit(corpus)
 
-    with open("tf_idf_model.pickle", "wb") as f:
-        pickle.dump(vectorizer, f)
+    print(f"{id}: updating tf-idf scores...")
+    text = ' '.join(df[progress].drop([0, 1, 2]))
+    top_words = get_top_words(vectorizer, text)
+    session = 'TF_IDF'
+    answer = ', '.join(top_words)
+    requests.post(f"https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec?session={session}&question={questionId}&answer={answer}")
 
-    print(f"training for new response completed: {answer}")
+
+def get_top_words(vectorizer: TfidfVectorizer, text: str):
+    top_n = 10
+    embedding = vectorizer.transform([text])[0]
+    sorted_nzs = np.argsort(embedding.data)[:-(top_n + 1):-1]
+    feature_names = np.array(vectorizer.get_feature_names())
+    words = feature_names[embedding.indices[sorted_nzs]]
+    scores = embedding.data[sorted_nzs]
+    return dict(zip(words, scores))
 
 
 if __name__ == '__main__':
