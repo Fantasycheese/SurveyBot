@@ -94,9 +94,10 @@ def get_next_question_by_session(session: str):
 
 def tf_idf_fit(id, answer):
     print(f"training for new response: {answer}")
-    corpus = pd.read_csv('corpus.csv', index_col='id')
-    corpus.loc[id] = [answer]
-    corpus.to_csv('corpus.csv')
+    data = requests.get("https://script.google.com/macros/s/AKfycbxU74OfKZ14G2I2LM3xLezCNgPnrcIxEAn4crFLqxsEIeiCN8U/exec")
+    corpus = pd.DataFrame(data.json()).drop(0, 1).apply(' '.join, axis=1).to_list()
+    corpus.append(answer)
+
     # unigrams_vectorizer.fit(corpus)
     #
     # if len(corpus.answer) > 1:
